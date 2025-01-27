@@ -71,10 +71,22 @@ jobs:
 
       - name: Install MSI Afterburner
         run: |
-          # Instala ferramenta para monitoramento de desempenho
-          Invoke-WebRequest -Uri "https://download.msi.com/utility/mb/afterburner/MSIAfterburnerSetup.zip" -OutFile "Afterburner.zip"
-          Expand-Archive -Path "Afterburner.zip" -DestinationPath "Afterburner" -Force
+          # Baixa o MSI Afterburner do site oficial
+          $url = "https://download.msi.com/utility/mb/afterburner/MSIAfterburnerSetup.zip"
+          $output = "Afterburner.zip"
+          
+          # Baixa o arquivo
+          Invoke-WebRequest -Uri $url -OutFile $output
+          
+          # Extrai o arquivo zip
+          Expand-Archive -Path $output -DestinationPath "Afterburner" -Force
+          
+          # Executa o instalador de forma silenciosa
           Start-Process -FilePath "Afterburner\Setup.exe" -ArgumentList "/S" -Wait
+          
+          # Limpa o arquivo zip
+          Remove-Item $output -Force
+          
           Write-Host "MSI Afterburner instalado com sucesso."
 
       - name: Monitor and Restart AnyDesk
