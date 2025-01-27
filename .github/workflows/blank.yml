@@ -1,93 +1,107 @@
-name: Criar PC Virtual com Máximos Recursos
+name: Windows Cloud PC - Gaming Optimization
 
 on:
   workflow_dispatch:
 
 jobs:
-  create_vm:
-    runs-on: ubuntu-latest
+  build:
+    name: Start Building...
+    runs-on: windows-latest
+    timeout-minutes: 10080  # Máximo de 7 dias de execução
 
     steps:
-      # Etapa 1: Instalar AWS CLI
-      - name: Instalar AWS CLI
+      - name: Install GPU Drivers
         run: |
-          sudo apt-get update
-          sudo apt-get install awscli -y
-          aws --version
+          # Baixa e instala drivers gráficos NVIDIA
+          Invoke-WebRequest -Uri "https://developer.download.nvidia.com/compute/cuda/12.2.0/local_installers/cuda_12.2.0_525.85.12_windows.exe" -OutFile "cuda_driver.exe"
+          Start-Process -FilePath "cuda_driver.exe" -ArgumentList "/silent" -Wait
+          Write-Host "Drivers gráficos instalados com sucesso."
 
-      # Etapa 2: Configurar AWS CLI com Credenciais (Secrets)
-      - name: Configurar AWS CLI
+      - name: Optimize AnyDesk for Gaming
         run: |
-          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws configure set default.region us-east-1  # Substitua pela sua região da AWS
+          # Configura AnyDesk para priorizar baixa latência
+          $anydeskConfig = "C:\Program Files (x86)\AnyDesk\AnyDesk.exe"
+          if (Test-Path $anydeskConfig) {
+            Write-Host "Otimizando AnyDesk para baixa latência..."
+            Start-Process -FilePath $anydeskConfig -ArgumentList "--set-priority-performance" -Wait
+          } else {
+            Write-Host "AnyDesk não encontrado para otimização."
+          }
 
-      # Etapa 3: Criar Instância EC2 com GPU A100 para Máximo Desempenho
-      - name: Criar Instância EC2 com GPU A100
+      - name: Optimize Parsec for Gaming
         run: |
-          aws ec2 run-instances \
-            --image-id ami-0abcdef1234567890 \  # Substitua com a AMI correta (ex: Ubuntu 20.04)
-            --count 1 \
-            --instance-type p4d.24xlarge \  # Instância com 8 GPUs NVIDIA A100 e 96 GB de RAM
-            --key-name minha-chave-pair \  # Substitua pela sua chave privada
-            --security-group-ids sg-0123456789abcdef0 \  # Substitua pelo ID do seu Security Group
-            --subnet-id subnet-12345678 \  # Substitua pelo ID da sua Subnet
-            --block-device-mappings \
-              '[{"DeviceName":"/dev/sda1","Ebs":{"VolumeSize":1000,"VolumeType":"gp3"}}]' \  # Volume EBS de 1TB com SSD de alta performance
-            --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=GitHub-VM}]'
+          # Ajusta configurações do Parsec
+          $configPath = "$env:APPDATA\Parsec\config.txt"
+          Set-Content -Path $configPath -Value @"
+          encoder_bitrate=50
+          network_latency=low
+          decoder_threads=auto
+          vsync=false
+          quality=high
+          "@
+          Write-Host "Configurações do Parsec otimizadas."
 
-      # Etapa 4: Obter IP Público da Instância EC2
-      - name: Obter IP Público da Instância
-        id: ec2_ip
+      - name: Enable Gaming Mode & Optimize Windows
         run: |
-          IP=$(aws ec2 describe-instances --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
-          echo "IP público da instância EC2: $IP"
-          echo "::set-output name=ip::$IP"
+          # Ativa o modo de jogo
+          reg add "HKEY_CURRENT_USER\Software\Microsoft\GameBar" /v AllowAutoGameMode /t REG_DWORD /d 1 /f
+          Write-Host "Modo de Jogo ativado."
 
-      # Etapa 5: Instalar e Configurar AnyDesk para Acesso Remoto
-      - name: Instalar AnyDesk para Acesso Remoto
-        run: |
-          wget -qO - https://keys.anydesk.com/repos/DEB-GPG-KEY | sudo apt-key add -
-          sudo add-apt-repository "deb http://deb.anydesk.com/ all main"
-          sudo apt-get update
-          sudo apt-get install anydesk -y
-          anydesk --version  # Verifique se o AnyDesk foi instalado corretamente
+          # Desativa efeitos visuais para melhor desempenho
+          reg add "HKEY_CURRENT_USER\Control Panel\Desktop" /v UserPreferencesMask /t REG_BINARY /d 9012038010101000 /f
+          Write-Host "Efeitos visuais desativados."
 
-      # Etapa 6: Configuração do Grupo de Segurança para Acesso Seguro
-      - name: Configurar Grupo de Segurança
-        run: |
-          aws ec2 create-security-group \
-            --group-name "GitHub-SG" \
-            --description "Security Group para GitHub VM"
-          
-          aws ec2 authorize-security-group-ingress \
-            --group-name "GitHub-SG" \
-            --protocol tcp \
-            --port 22 \
-            --cidr 0.0.0.0/0  # Permitir acesso SSH de qualquer lugar (pode ser restrito conforme necessário)
-          
-          # Acesso adicional para RDP (porta 3389) ou AnyDesk (porta 7070)
-          aws ec2 authorize-security-group-ingress \
-            --group-name "GitHub-SG" \
-            --protocol tcp \
-            --port 7070 \
-            --cidr 0.0.0.0/0  # Acesso AnyDesk remoto
+          # Define o plano de energia para alto desempenho
+          powercfg -setactive SCHEME_MIN
+          Write-Host "Plano de energia configurado para Alto Desempenho."
 
-      # Etapa 7: Commit e Push para o Repositório
-      - name: Commit e Push
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install MSI Afterburner
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -m "Máquina Virtual de Alto Desempenho Criada com AnyDesk"
-          git push
+          # Instala ferramenta para monitoramento de desempenho
+          Invoke-WebRequest -Uri "https://download.msi.com/utility/mb/afterburner/MSIAfterburnerSetup.zip" -OutFile "Afterburner.zip"
+          Expand-Archive -Path "Afterburner.zip" -DestinationPath "Afterburner" -Force
+          Start-Process -FilePath "Afterburner\Setup.exe" -ArgumentList "/S" -Wait
+          Write-Host "MSI Afterburner instalado com sucesso."
 
-      # Etapa 8: Manter Máquina em Execução
-      - name: Manter Máquina em Execução
+      - name: Monitor and Restart AnyDesk
         run: |
-          while true; do
-            echo "Máquina virtual em execução..."
-            sleep 3600  # Espera 1 hora antes de continuar
-          done
+          $startTime = Get-Date
+          $timeLimit = [TimeSpan]::FromDays(7)  # Limite de 7 dias
+          $checkInterval = 300  # Intervalo de 5 minutos entre verificações
+          $logFile = "monitoring_log.txt"
+
+          Write-Host "Monitoramento iniciado em: $startTime"
+          Out-File -FilePath $logFile -InputObject "=== AnyDesk Monitoramento Iniciado ===`nData/Hora de início: $startTime`n" -Append
+
+          while ((Get-Date) - $startTime -lt $timeLimit) {
+            try {
+              # Verifica se o processo AnyDesk está ativo
+              $process = Get-Process -Name "AnyDesk" -ErrorAction SilentlyContinue
+              
+              if (-not $process) {
+                Write-Host "$(Get-Date) - AnyDesk não está rodando. Tentando reiniciar..."
+                Out-File -FilePath $logFile -InputObject "$(Get-Date) - AnyDesk não está rodando. Reiniciando..." -Append
+                cmd /c start.bat
+              } else {
+                Write-Host "$(Get-Date) - AnyDesk está funcionando normalmente."
+                Out-File -FilePath $logFile -InputObject "$(Get-Date) - AnyDesk está ativo." -Append
+              }
+            } catch {
+              Write-Host "$(Get-Date) - Erro detectado durante a verificação: $_"
+              Out-File -FilePath $logFile -InputObject "$(Get-Date) - Erro detectado: $_" -Append
+            }
+
+            # Pausa entre verificações
+            Start-Sleep -Seconds $checkInterval
+          }
+
+          # Registro do fim do monitoramento
+          $endTime = Get-Date
+          Write-Host "Monitoramento finalizado em: $endTime"
+          Out-File -FilePath $logFile -InputObject "`n=== Monitoramento Concluído ===`nData/Hora de término: $endTime`n" -Append
+
+      - name: Clean Up Temporary Files
+        run: |
+          Remove-Item Afterburner.zip -Force
+          Remove-Item cuda_driver.exe -Force
+          Write-Host "Arquivos temporários removidos."
