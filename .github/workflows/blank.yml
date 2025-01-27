@@ -37,18 +37,20 @@ jobs:
             --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=GitHub-VM}]'
 
       # Etapa 4: Obter IP Público da Instância EC2
-      - name: Obter IP Público da Instância
+      - name: Obter IP Público da Instância EC2
         id: ec2_ip
         run: |
           IP=$(aws ec2 describe-instances --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
           echo "IP público da instância EC2: $IP"
-          echo "::set-output name=ip::$IP"
+          echo "ip=$IP" >> $GITHUB_ENV  # Corrigido para salvar a variável de saída corretamente
 
       # Etapa 5: Instalar Parsec para Acesso Remoto
       - name: Instalar Parsec para Acesso Remoto
         run: |
+          sudo apt-get update
+          sudo apt-get install wine -y  # Instalando o wine
           wget https://builds.parsec.app/package/parsec-windows-latest.exe -O parsec-installer.exe
-          wine parsec-installer.exe /S  # Instalar usando Wine, caso esteja em um sistema Linux
+          wine parsec-installer.exe /S  # Instalar Parsec com Wine
 
       # Etapa 6: Configuração do Grupo de Segurança para Acesso Seguro
       - name: Configurar Grupo de Segurança
