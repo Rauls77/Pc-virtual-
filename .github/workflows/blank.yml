@@ -44,7 +44,7 @@ jobs:
           echo "IP público da instância EC2: $IP"
           echo "::set-output name=ip::$IP"
 
-      # Etapa 5: Instalar e Configurar Parsec para Acesso Remoto
+      # Etapa 5: Instalar Parsec para Acesso Remoto
       - name: Instalar Parsec para Acesso Remoto
         run: |
           wget https://builds.parsec.app/package/parsec-windows-latest.exe -O parsec-installer.exe
