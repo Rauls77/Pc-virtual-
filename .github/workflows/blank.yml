@@ -1,4 +1,4 @@
-name: Windows Cloud PC - Gaming Optimization
+name: Windows Cloud PC - Anydesk (Optimized)
 
 on:
   workflow_dispatch:
@@ -7,126 +7,45 @@ jobs:
   build:
     name: Start Building...
     runs-on: windows-latest
-    timeout-minutes: 10080  # Máximo de 7 dias de execução
+    timeout-minutes: 10080  # Máximo de 7 dias para evitar tempo de execução excessivo
 
     steps:
-      - name: Install Parsec
+      - name: Downloading & Installing Essentials
         run: |
-          # Caminho para o instalador do Parsec
-          $parsecInstaller = "ParsecSetup.exe"
-          
-          # Baixa o instalador do Parsec
-          Invoke-WebRequest -Uri "https://builds.parsec.app/package/parsec-windows.exe" -OutFile $parsecInstaller
-          
-          # Executa o instalador de forma silenciosa
-          Start-Process -FilePath $parsecInstaller -ArgumentList "/S" -Wait
-          Write-Host "Parsec instalado com sucesso."
+          # Baixa o arquivo .bat para instalar componentes essenciais
+          Invoke-WebRequest -Uri "https://www.dropbox.com/scl/fi/7eiczvgil84czu55dxep3/Downloads.bat?rlkey=wzdc1wxjsph2b7r0atplmdz3p&dl=1" -OutFile "Downloads.bat"
+          # Executa o script .bat para instalar os componentes
+          cmd /c Downloads.bat
 
-      - name: Optimize AnyDesk for Gaming
+      - name: Log In To AnyDesk
         run: |
-          # Configura AnyDesk para priorizar baixa latência
-          $anydeskConfig = "C:\Program Files (x86)\AnyDesk\AnyDesk.exe"
-          if (Test-Path $anydeskConfig) {
-            Write-Host "Otimizando AnyDesk para baixa latência..."
-            Start-Process -FilePath $anydeskConfig -ArgumentList "--set-priority-performance" -Wait
+          # Verifica se o arquivo start.bat existe antes de executar
+          if (Test-Path "start.bat") {
+            cmd /c start.bat
           } else {
-            Write-Host "AnyDesk não encontrado para otimização."
+            Write-Host "Arquivo start.bat não encontrado. Verifique a configuração."
           }
 
-      - name: Optimize Parsec for Gaming
+      - name: Monitor and Restart AnyDesk if Needed
         run: |
-          # Caminho do arquivo de configuração do Parsec
-          $configPath = "$env:APPDATA\Parsec\config.txt"
-          
-          # Verifica e cria o diretório se não existir
-          $configDir = [System.IO.Path]::GetDirectoryName($configPath)
-          if (-not (Test-Path -Path $configDir)) {
-            New-Item -ItemType Directory -Path $configDir -Force
-            Write-Host "Diretório criado: $configDir"
-          }
-
-          # Grava as configurações no arquivo
-          Set-Content -Path $configPath -Value @"
-          encoder_bitrate=50
-          network_latency=low
-          decoder_threads=auto
-          vsync=false
-          quality=high
-          "@
-          Write-Host "Configurações do Parsec otimizadas."
-
-      - name: Enable Gaming Mode & Optimize Windows
-        run: |
-          # Ativa o modo de jogo
-          reg add "HKEY_CURRENT_USER\Software\Microsoft\GameBar" /v AllowAutoGameMode /t REG_DWORD /d 1 /f
-          Write-Host "Modo de Jogo ativado."
-
-          # Desativa efeitos visuais para melhor desempenho
-          reg add "HKEY_CURRENT_USER\Control Panel\Desktop" /v UserPreferencesMask /t REG_BINARY /d 9012038010101000 /f
-          Write-Host "Efeitos visuais desativados."
-
-          # Define o plano de energia para alto desempenho
-          powercfg -setactive SCHEME_MIN
-          Write-Host "Plano de energia configurado para Alto Desempenho."
-
-      - name: Install MSI Afterburner
-        run: |
-          # Baixa o MSI Afterburner do site oficial
-          $url = "https://download.msi.com/utility/mb/afterburner/MSIAfterburnerSetup.zip"
-          $output = "Afterburner.zip"
-          
-          # Baixa o arquivo
-          Invoke-WebRequest -Uri $url -OutFile $output
-          
-          # Extrai o arquivo zip
-          Expand-Archive -Path $output -DestinationPath "Afterburner" -Force
-          
-          # Executa o instalador de forma silenciosa
-          Start-Process -FilePath "Afterburner\Setup.exe" -ArgumentList "/S" -Wait
-          
-          # Limpa o arquivo zip
-          Remove-Item $output -Force
-          
-          Write-Host "MSI Afterburner instalado com sucesso."
-
-      - name: Monitor and Restart AnyDesk
-        run: |
-          $startTime = Get-Date
-          $timeLimit = [TimeSpan]::FromDays(7)  # Limite de 7 dias
-          $checkInterval = 300  # Intervalo de 5 minutos entre verificações
-          $logFile = "monitoring_log.txt"
-
-          Write-Host "Monitoramento iniciado em: $startTime"
-          Out-File -FilePath $logFile -InputObject "=== AnyDesk Monitoramento Iniciado ===`nData/Hora de início: $startTime`n" -Append
-
-          while ((Get-Date) - $startTime -lt $timeLimit) {
-            try {
-              # Verifica se o processo AnyDesk está ativo
-              $process = Get-Process -Name "AnyDesk" -ErrorAction SilentlyContinue
-              
-              if (-not $process) {
-                Write-Host "$(Get-Date) - AnyDesk não está rodando. Tentando reiniciar..."
-                Out-File -FilePath $logFile -InputObject "$(Get-Date) - AnyDesk não está rodando. Reiniciando..." -Append
-                cmd /c start.bat
-              } else {
-                Write-Host "$(Get-Date) - AnyDesk está funcionando normalmente."
-                Out-File -FilePath $logFile -InputObject "$(Get-Date) - AnyDesk está ativo." -Append
-              }
-            } catch {
-              Write-Host "$(Get-Date) - Erro detectado durante a verificação: $_"
-              Out-File -FilePath $logFile -InputObject "$(Get-Date) - Erro detectado: $_" -Append
+          # Monitora a conexão do AnyDesk e reinicia se necessário
+          while ($true) {
+            $process = Get-Process -Name "AnyDesk" -ErrorAction SilentlyContinue
+            if (-not $process) {
+              Write-Host "AnyDesk não está rodando, reiniciando..."
+              cmd /c start.bat
             }
-
-            # Pausa entre verificações
-            Start-Sleep -Seconds $checkInterval
+            Start-Sleep -Seconds 300  # Verifica a cada 5 minutos
           }
 
-          # Registro do fim do monitoramento
-          $endTime = Get-Date
-          Write-Host "Monitoramento finalizado em: $endTime"
-          Out-File -FilePath $logFile -InputObject "`n=== Monitoramento Concluído ===`nData/Hora de término: $endTime`n" -Append
+      - name: Time Counter (Long Running Task)
+        run: |
+          # Configura para manter a máquina em execução
+          Start-Sleep -Seconds 604800  # 7 dias de execução contínua
 
       - name: Clean Up Temporary Files
+        if: success()  # Executa esta etapa apenas se todas as etapas anteriores forem bem-sucedidas
         run: |
-          Remove-Item Afterburner.zip -Force
-          Write-Host "Arquivos temporários removidos."
+          # Remove arquivos temporários ou logs gerados
+          Remove-Item Downloads.bat -Force
+          Write-Host "Limpeza completa."
