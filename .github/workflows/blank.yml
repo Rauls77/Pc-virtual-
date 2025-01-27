@@ -8,12 +8,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Etapa 1: Instalar AWS CLI usando o método oficial
+      # Etapa 1: Instalar AWS CLI
       - name: Instalar AWS CLI
         run: |
-          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-          unzip awscliv2.zip
-          sudo ./aws/install
+          sudo apt-get update
+          sudo apt-get install awscli -y
           aws --version
 
       # Etapa 2: Configurar AWS CLI com Credenciais (Secrets)
@@ -38,20 +37,21 @@ jobs:
             --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=GitHub-VM}]'
 
       # Etapa 4: Obter IP Público da Instância EC2
-      - name: Obter IP Público da Instância EC2
+      - name: Obter IP Público da Instância
         id: ec2_ip
         run: |
           IP=$(aws ec2 describe-instances --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
           echo "IP público da instância EC2: $IP"
-          echo "ip=$IP" >> $GITHUB_ENV  # Correção do método de definição de saída
+          echo "::set-output name=ip::$IP"
 
-      # Etapa 5: Instalar Parsec para Acesso Remoto
-      - name: Instalar Parsec para Acesso Remoto
+      # Etapa 5: Instalar e Configurar AnyDesk para Acesso Remoto
+      - name: Instalar AnyDesk para Acesso Remoto
         run: |
+          wget -qO - https://keys.anydesk.com/repos/DEB-GPG-KEY | sudo apt-key add -
+          sudo add-apt-repository "deb http://deb.anydesk.com/ all main"
           sudo apt-get update
-          sudo apt-get install wine -y  # Instalando o wine
-          wget https://builds.parsec.app/package/parsec-windows-latest.exe -O parsec-installer.exe
-          wine parsec-installer.exe /S  # Instalar Parsec com Wine
+          sudo apt-get install anydesk -y
+          anydesk --version  # Verifique se o AnyDesk foi instalado corretamente
 
       # Etapa 6: Configuração do Grupo de Segurança para Acesso Seguro
       - name: Configurar Grupo de Segurança
@@ -66,12 +66,12 @@ jobs:
             --port 22 \
             --cidr 0.0.0.0/0  # Permitir acesso SSH de qualquer lugar (pode ser restrito conforme necessário)
           
-          # Acesso adicional para RDP (porta 3389) ou Parsec (porta 8000, por exemplo)
+          # Acesso adicional para RDP (porta 3389) ou AnyDesk (porta 7070)
           aws ec2 authorize-security-group-ingress \
             --group-name "GitHub-SG" \
             --protocol tcp \
-            --port 3389 \
-            --cidr 0.0.0.0/0  # Acesso RDP remoto
+            --port 7070 \
+            --cidr 0.0.0.0/0  # Acesso AnyDesk remoto
 
       # Etapa 7: Commit e Push para o Repositório
       - name: Commit e Push
@@ -81,7 +81,7 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add .
-          git commit -m "Máquina Virtual de Alto Desempenho Criada"
+          git commit -m "Máquina Virtual de Alto Desempenho Criada com AnyDesk"
           git push
 
       # Etapa 8: Manter Máquina em Execução
