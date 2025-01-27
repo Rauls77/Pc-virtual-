@@ -10,13 +10,6 @@ jobs:
     timeout-minutes: 10080  # Máximo de 7 dias de execução
 
     steps:
-      - name: Install GPU Drivers
-        run: |
-          # Baixa e instala drivers gráficos NVIDIA
-          Invoke-WebRequest -Uri "https://developer.download.nvidia.com/compute/cuda/12.2.0/local_installers/cuda_12.2.0_525.85.12_windows.exe" -OutFile "cuda_driver.exe"
-          Start-Process -FilePath "cuda_driver.exe" -ArgumentList "/silent" -Wait
-          Write-Host "Drivers gráficos instalados com sucesso."
-
       - name: Optimize AnyDesk for Gaming
         run: |
           # Configura AnyDesk para priorizar baixa latência
@@ -103,5 +96,4 @@ jobs:
       - name: Clean Up Temporary Files
         run: |
           Remove-Item Afterburner.zip -Force
-          Remove-Item cuda_driver.exe -Force
           Write-Host "Arquivos temporários removidos."
