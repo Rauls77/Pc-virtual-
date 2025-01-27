@@ -1,28 +1,34 @@
-name: Windows Cloud PC - Anydesk (With Save)
+name: Windows Cloud PC - Anydesk (With GPU Support)
 
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    name: Infinite Execution with Save
-    runs-on: windows-latest
-    timeout-minutes: 10080  # 7 dias
+    name: Run with GPU
+    runs-on: [self-hosted, gpu]  # 'gpu' deve ser uma tag configurada para sua máquina com GPU
 
     steps:
       # Configurar o repositório
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      # Baixar e instalar componentes essenciais com verificação de integridade
+      # Instalar CUDA e outras dependências
+      - name: Install CUDA and other dependencies
+        run: |
+          # Exemplo: Instalar CUDA no Ubuntu (ajuste conforme seu SO)
+          sudo apt-get update
+          sudo apt-get install cuda
+
+      # Baixar e instalar componentes essenciais
       - name: Downloading & Installing Essentials
         run: |
           $url = "https://www.dropbox.com/scl/fi/7eiczvgil84czu55dxep3/Downloads.bat?rlkey=wzdc1wxjsph2b7r0atplmdz3p&dl=1"
           $downloadedFile = "Downloads.bat"
           Invoke-WebRequest -Uri $url -OutFile $downloadedFile
           
-          # Verificar integridade (exemplo: verificação de hash)
-          $expectedHash = "ABC123..."  # Substitua pelo hash real esperado do arquivo
+          # Verificar integridade do arquivo
+          $expectedHash = "ABC123..."  # Substitua pelo hash correto
           $fileHash = Get-FileHash -Path $downloadedFile -Algorithm SHA256
           if ($fileHash.Hash -ne $expectedHash) {
               Write-Host "O arquivo está corrompido ou foi alterado. Abortando o processo."
@@ -47,25 +53,14 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git diff --quiet || (git add . && git commit -m "Salvando alterações automáticas - $(Get-Date)" && git push)
 
-      # Simulação de execução com limite de tempo (24 horas) em vez de loop infinito
-      - name: Simulate Timed Execution
+      # Execução com GPU (exemplo com Python, ajustável conforme necessidade)
+      - name: Execute Task using GPU
         run: |
-          $maxRunTime = 86400  # 24 horas em segundos
-          $startTime = Get-Date
-          while ((Get-Date) - $startTime).TotalSeconds -lt $maxRunTime) {
-              Write-Host "Job ainda está ativo às $(Get-Date)"
-              Start-Sleep -Seconds 3600  # Espera de 1 hora
-          }
+          # Execute seu script que utiliza a GPU, por exemplo, com Python
+          python your_script_with_gpu.py
 
       # Limpeza de arquivos temporários
       - name: Clean Up Temporary Files
         run: |
           Remove-Item -Path "Downloads.bat" -Force
           Remove-Item -Path "log.txt" -Force
-
-      # Enviar notificação de status para o Slack (exemplo)
-      - name: Send Slack Notification
-        uses: 8398a7/action-slack@v3
-        with:
-          status: ${{ job.status }}
-          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
