@@ -1,69 +1,90 @@
-name: Configurar PC Virtual com Parsec
+name: Criar PC Virtual com Máximos Recursos
 
 on:
   workflow_dispatch:
 
 jobs:
-  setup:
+  create_vm:
     runs-on: ubuntu-latest
+
     steps:
-      # Etapa 1: Configurar o AWS CLI
-      - name: Install AWS CLI
+      # Etapa 1: Instalar AWS CLI
+      - name: Instalar AWS CLI
         run: |
           sudo apt-get update
           sudo apt-get install awscli -y
           aws --version
 
-      # Etapa 2: Configurar AWS CLI com credenciais (substitua com suas credenciais no GitHub Secrets)
-      - name: Configure AWS CLI with credentials
+      # Etapa 2: Configurar AWS CLI com Credenciais (Secrets)
+      - name: Configurar AWS CLI
         run: |
           aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws configure set default.region us-east-1  # Altere para sua região
+          aws configure set default.region us-east-1  # Substitua pela sua região da AWS
 
-      # Etapa 3: Criar Instância EC2 na AWS com GPU
-      - name: Create EC2 instance with GPU
+      # Etapa 3: Criar Instância EC2 com GPU A100 para Máximo Desempenho
+      - name: Criar Instância EC2 com GPU A100
         run: |
           aws ec2 run-instances \
-            --image-id ami-0abcdef1234567890 \  # Substitua com a AMI correta
+            --image-id ami-0abcdef1234567890 \  # Substitua com a AMI correta (ex: Ubuntu 20.04)
             --count 1 \
-            --instance-type p3.2xlarge \  # Instância com GPU, como Tesla K80 ou equivalente
-            --key-name my-key-pair \  # Substitua com sua chave privada
-            --security-group-ids sg-0123456789abcdef0 \  # Substitua com o ID do seu grupo de segurança
-            --subnet-id subnet-12345678 \  # Substitua com o ID da sua subnet
-            --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=ParsecVM}]'
+            --instance-type p4d.24xlarge \  # Instância com 8 GPUs NVIDIA A100 e 96 GB de RAM
+            --key-name minha-chave-pair \  # Substitua pela sua chave privada
+            --security-group-ids sg-0123456789abcdef0 \  # Substitua pelo ID do seu Security Group
+            --subnet-id subnet-12345678 \  # Substitua pelo ID da sua Subnet
+            --block-device-mappings \
+              '[{"DeviceName":"/dev/sda1","Ebs":{"VolumeSize":1000,"VolumeType":"gp3"}}]' \  # Volume EBS de 1TB com SSD de alta performance
+            --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=GitHub-VM}]'
 
-      # Etapa 4: Conectar à instância EC2 e instalar Parsec
-      - name: Install Parsec on EC2 instance
+      # Etapa 4: Obter IP Público da Instância EC2
+      - name: Obter IP Público da Instância
+        id: ec2_ip
         run: |
-          ssh -i "my-key-pair.pem" ubuntu@ec2-XX-XX-XX-XX.compute-1.amazonaws.com <<EOF
-            # Baixar e instalar o Parsec
-            wget https://builds.parsec.app/package/parsec-installer.exe -O parsec-installer.exe
-            wine parsec-installer.exe  # Instalar o Parsec usando Wine no Ubuntu
-            # Configurar Parsec automaticamente (exemplo)
-            # Adicione qualquer configuração adicional que você precise para Parsec aqui
-          EOF
+          IP=$(aws ec2 describe-instances --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
+          echo "IP público da instância EC2: $IP"
+          echo "::set-output name=ip::$IP"
 
-      # Etapa 5: Gerar Link de Conexão para Parsec
-      - name: Generate Parsec connection link
+      # Etapa 5: Instalar e Configurar Parsec para Acesso Remoto
+      - name: Instalar Parsec para Acesso Remoto
         run: |
-          echo "Link de conexão Parsec gerado com sucesso! Agora, você pode se conectar ao PC virtual com Parsec."
+          wget https://builds.parsec.app/package/parsec-windows-latest.exe -O parsec-installer.exe
+          wine parsec-installer.exe /S  # Instalar usando Wine, caso esteja em um sistema Linux
 
-      # Etapa 6: Commit e Push Automático (se necessário)
-      - name: Commit and Push Changes
+      # Etapa 6: Configuração do Grupo de Segurança para Acesso Seguro
+      - name: Configurar Grupo de Segurança
+        run: |
+          aws ec2 create-security-group \
+            --group-name "GitHub-SG" \
+            --description "Security Group para GitHub VM"
+          
+          aws ec2 authorize-security-group-ingress \
+            --group-name "GitHub-SG" \
+            --protocol tcp \
+            --port 22 \
+            --cidr 0.0.0.0/0  # Permitir acesso SSH de qualquer lugar (pode ser restrito conforme necessário)
+          
+          # Acesso adicional para RDP (porta 3389) ou Parsec (porta 8000, por exemplo)
+          aws ec2 authorize-security-group-ingress \
+            --group-name "GitHub-SG" \
+            --protocol tcp \
+            --port 3389 \
+            --cidr 0.0.0.0/0  # Acesso RDP remoto
+
+      # Etapa 7: Commit e Push para o Repositório
+      - name: Commit e Push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add .
-          git commit -m "Automated setup for Parsec PC Virtual"
+          git commit -m "Máquina Virtual de Alto Desempenho Criada"
           git push
 
-      # Etapa 7: Simular Execução Contínua (opcional)
-      - name: Simulate Infinite Execution
+      # Etapa 8: Manter Máquina em Execução
+      - name: Manter Máquina em Execução
         run: |
-          while ($true) {
-            Write-Host "Workflow em execução contínua às $(Get-Date)"
-            Start-Sleep -Seconds 3600  # Pausa por 1 hora
-          }
+          while true; do
+            echo "Máquina virtual em execução..."
+            sleep 3600  # Espera 1 hora antes de continuar
+          done
