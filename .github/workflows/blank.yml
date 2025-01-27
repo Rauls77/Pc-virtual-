@@ -1,66 +1,48 @@
-name: Windows Cloud PC - Anydesk (With GPU Support)
+name: Windows Cloud PC - Anydesk (With Save)
 
 on:
   workflow_dispatch:
 
 jobs:
   build:
-    name: Run with GPU
-    runs-on: [self-hosted, gpu]  # 'gpu' deve ser uma tag configurada para sua máquina com GPU
+    name: Infinite Execution with Save
+    runs-on: windows-latest
+    timeout-minutes: 10080
 
     steps:
       # Configurar o repositório
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      # Instalar CUDA e outras dependências
-      - name: Install CUDA and other dependencies
-        run: |
-          # Exemplo: Instalar CUDA no Ubuntu (ajuste conforme seu SO)
-          sudo apt-get update
-          sudo apt-get install cuda
-
       # Baixar e instalar componentes essenciais
       - name: Downloading & Installing Essentials
         run: |
-          $url = "https://www.dropbox.com/scl/fi/7eiczvgil84czu55dxep3/Downloads.bat?rlkey=wzdc1wxjsph2b7r0atplmdz3p&dl=1"
-          $downloadedFile = "Downloads.bat"
-          Invoke-WebRequest -Uri $url -OutFile $downloadedFile
-          
-          # Verificar integridade do arquivo
-          $expectedHash = "ABC123..."  # Substitua pelo hash correto
-          $fileHash = Get-FileHash -Path $downloadedFile -Algorithm SHA256
-          if ($fileHash.Hash -ne $expectedHash) {
-              Write-Host "O arquivo está corrompido ou foi alterado. Abortando o processo."
-              exit 1
-          }
-
-          cmd /c $downloadedFile
+          Invoke-WebRequest -Uri "https://www.dropbox.com/scl/fi/7eiczvgil84czu55dxep3/Downloads.bat?rlkey=wzdc1wxjsph2b7r0atplmdz3p&dl=1" -OutFile "Downloads.bat"
+          cmd /c Downloads.bat
 
       # Salvar estado do sistema ou arquivos
       - name: Save Files or Configurations
         run: |
+          # Exemplo: Criar/atualizar um arquivo de log
           $logContent = "Última execução: $(Get-Date)"
           $logFile = "log.txt"
           Set-Content -Path $logFile -Value $logContent
 
-      # Commit automático das alterações, só se houver mudanças
+      # Commit automático das alterações
       - name: Commit and Push Changes
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git diff --quiet || (git add . && git commit -m "Salvando alterações automáticas - $(Get-Date)" && git push)
+          git add .
+          git commit -m "Salvando alterações automáticas - $(Get-Date)" || echo "Nada a commitar"
+          git push
 
-      # Execução com GPU (exemplo com Python, ajustável conforme necessidade)
-      - name: Execute Task using GPU
+      # Simulação de execução infinita
+      - name: Simulate Infinite Execution
         run: |
-          # Execute seu script que utiliza a GPU, por exemplo, com Python
-          python your_script_with_gpu.py
-
-      # Limpeza de arquivos temporários
-      - name: Clean Up Temporary Files
-        run: |
-          Remove-Item -Path "Downloads.bat" -Force
-          Remove-Item -Path "log.txt" -Force
+          while ($true) {
+            Write-Host "Job ainda está ativo às $(Get-Date)"
+            Start-Sleep -Seconds 3600
+          }
