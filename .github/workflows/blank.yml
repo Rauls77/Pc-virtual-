@@ -8,11 +8,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Etapa 1: Instalar AWS CLI
+      # Etapa 1: Instalar AWS CLI usando o método oficial
       - name: Instalar AWS CLI
         run: |
-          sudo apt-get update
-          sudo apt-get install awscli -y
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install
           aws --version
 
       # Etapa 2: Configurar AWS CLI com Credenciais (Secrets)
@@ -42,7 +43,7 @@ jobs:
         run: |
           IP=$(aws ec2 describe-instances --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
           echo "IP público da instância EC2: $IP"
-          echo "ip=$IP" >> $GITHUB_ENV  # Corrigido para salvar a variável de saída corretamente
+          echo "ip=$IP" >> $GITHUB_ENV  # Correção do método de definição de saída
 
       # Etapa 5: Instalar Parsec para Acesso Remoto
       - name: Instalar Parsec para Acesso Remoto
