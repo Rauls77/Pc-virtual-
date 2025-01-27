@@ -10,6 +10,18 @@ jobs:
     timeout-minutes: 10080  # Máximo de 7 dias de execução
 
     steps:
+      - name: Install Parsec
+        run: |
+          # Caminho para o instalador do Parsec
+          $parsecInstaller = "ParsecSetup.exe"
+          
+          # Baixa o instalador do Parsec
+          Invoke-WebRequest -Uri "https://builds.parsec.app/package/parsec-windows.exe" -OutFile $parsecInstaller
+          
+          # Executa o instalador de forma silenciosa
+          Start-Process -FilePath $parsecInstaller -ArgumentList "/S" -Wait
+          Write-Host "Parsec instalado com sucesso."
+
       - name: Optimize AnyDesk for Gaming
         run: |
           # Configura AnyDesk para priorizar baixa latência
@@ -23,8 +35,17 @@ jobs:
 
       - name: Optimize Parsec for Gaming
         run: |
-          # Ajusta configurações do Parsec
+          # Caminho do arquivo de configuração do Parsec
           $configPath = "$env:APPDATA\Parsec\config.txt"
+          
+          # Verifica e cria o diretório se não existir
+          $configDir = [System.IO.Path]::GetDirectoryName($configPath)
+          if (-not (Test-Path -Path $configDir)) {
+            New-Item -ItemType Directory -Path $configDir -Force
+            Write-Host "Diretório criado: $configDir"
+          }
+
+          # Grava as configurações no arquivo
           Set-Content -Path $configPath -Value @"
           encoder_bitrate=50
           network_latency=low
