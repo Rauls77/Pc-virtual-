@@ -7,53 +7,25 @@ jobs:
   build:
     name: Start Building...
     runs-on: windows-latest
-    timeout-minutes: 10080  # Máximo de 7 dias de execução
+    timeout-minutes: 4320  # Máximo de 72 horas de execução contínua
 
     steps:
-      - name: 🔍 Verificar espaço inicial
-        run: Get-PSDrive C
-
-      - name: 💾 Expandir armazenamento e liberar espaço
-        run: |
-          # Remover pacotes desnecessários
-          Remove-Item -Recurse -Force "C:\Program Files\dotnet"
-          Remove-Item -Recurse -Force "C:\Program Files (x86)\Microsoft SDKs"
-          Remove-Item -Recurse -Force "C:\Program Files (x86)\Windows Kits"
-          Remove-Item -Recurse -Force "C:\ProgramData\chocolatey"
-          Remove-Item -Recurse -Force "C:\Users\runneradmin\AppData\Local\Temp"
-          Write-Host "✔ Espaço liberado!"
-
-          # Criar script para expandir o disco
-          echo select volume c > diskpart-script.txt
-          echo extend >> diskpart-script.txt
-          echo exit >> diskpart-script.txt
-          diskpart /s diskpart-script.txt
-          Write-Host "✔ Disco C expandido!"
-
-      - name: 🔥 Aumentar Memória RAM (Memória Virtual)
-        run: |
-          Write-Host "Ajustando memória virtual para 16GB - 32GB..."
-          wmic computersystem where name="%computername%" set AutomaticManagedPagefile=False
-          wmic pagefileset where name="C:\\pagefile.sys" set InitialSize=16384,MaximumSize=32768
-          Write-Host "✔ Memória virtual ajustada!"
-
-      - name: 📥 Downloading & Installing Essentials
+      - name: Downloading & Installing Essentials
         run: |
           # Baixa o arquivo .bat para instalar componentes essenciais
           Invoke-WebRequest -Uri "https://www.dropbox.com/scl/fi/7eiczvgil84czu55dxep3/Downloads.bat?rlkey=wzdc1wxjsph2b7r0atplmdz3p&dl=1" -OutFile "Downloads.bat"
+          
           # Executa o script .bat para instalar os componentes
           cmd /c Downloads.bat
 
-      - name: 🔑 Log In To AnyDesk
+      - name: Log In To AnyDesk
         run: |
-          if (Test-Path "start.bat") {
-            cmd /c start.bat
-          } else {
-            Write-Host "Arquivo start.bat não encontrado."
-          }
+          # Verifica se o arquivo start.bat existe antes de executar
+          if (Test-Path "start.bat") { cmd /c start.bat } else { Write-Host "Arquivo start.bat não encontrado. Verifique a configuração." }
 
-      - name: ♻ Monitor and Restart AnyDesk if Needed
+      - name: Monitor and Restart AnyDesk if Needed
         run: |
+          # Monitora a conexão do AnyDesk e reinicia se necessário
           while ($true) {
             $process = Get-Process -Name "AnyDesk" -ErrorAction SilentlyContinue
             if (-not $process) {
@@ -63,11 +35,14 @@ jobs:
             Start-Sleep -Seconds 300  # Verifica a cada 5 minutos
           }
 
-      - name: ⏳ Time Counter (Long Running Task)
-        run: Start-Sleep -Seconds 604800  # Mantém rodando por 7 dias
-
-      - name: 🗑 Clean Up Temporary Files
-        if: success()
+      - name: Time Counter (Long Running Task)
         run: |
+          # Configura para manter a máquina em execução
+          Start-Sleep -Seconds 604800  # 7 dias de execução contínua
+
+      - name: Clean Up Temporary Files
+        if: success()  # Executa esta etapa apenas se todas as etapas anteriores forem bem-sucedidas
+        run: |
+          # Remove arquivos temporários ou logs gerados
           Remove-Item Downloads.bat -Force
-          Write-Host "✔ Limpeza completa!"
+          Write-Host "Limpeza completa."
