@@ -1,51 +1,82 @@
-name: Windows Cloud PC - Anydesk (Optimized)
+from azure.identity import DefaultAzureCredential
+from azure.mgmt.compute import ComputeManagementClient
+from azure.mgmt.network import NetworkManagementClient
+from azure.mgmt.resource import ResourceManagementClient
+from azure.mgmt.compute.models import (
+    HardwareProfile,
+    NetworkProfile,
+    OsProfile,
+    StorageProfile,
+    VirtualMachine,
+    NetworkInterfaceReference,
+    DiskCreateOption,
+    CachingTypes,
+    OperatingSystemTypes,
+    SubResource
+)
+import subprocess
 
-on:
-  workflow_dispatch:
+# Autenticação
+credential = DefaultAzureCredential()
 
-jobs:
-  build:
-    name: Start Building...
-    runs-on: windows-latest
-    timeout-minutes: 10080  # Máximo de 7 dias para evitar tempo de execução excessivo
+# Parâmetros
+subscription_id = 'YOUR_SUBSCRIPTION_ID'
+resource_group_name = 'YOUR_RESOURCE_GROUP_NAME'
+location = 'YOUR_LOCATION'
+vm_name = 'YOUR_VM_NAME'
+admin_username = 'YOUR_ADMIN_USERNAME'
+admin_password = 'YOUR_ADMIN_PASSWORD'
+network_interface_id = 'YOUR_NETWORK_INTERFACE_ID'
 
-    steps:
-      - name: Downloading & Installing Essentials
-        run: |
-          # Baixa o arquivo .bat para instalar componentes essenciais
-          Invoke-WebRequest -Uri "https://www.dropbox.com/scl/fi/7eiczvgil84czu55dxep3/Downloads.bat?rlkey=wzdc1wxjsph2b7r0atplmdz3p&dl=1" -OutFile "Downloads.bat"
-          # Executa o script .bat para instalar os componentes
-          cmd /c Downloads.bat
+# Cliente de gestão de recursos
+resource_client = ResourceManagementClient(credential, subscription_id)
 
-      - name: Log In To AnyDesk
-        run: |
-          # Verifica se o arquivo start.bat existe antes de executar
-          if (Test-Path "start.bat") {
-            cmd /c start.bat
-          } else {
-            Write-Host "Arquivo start.bat não encontrado. Verifique a configuração."
-          }
+# Cliente de gestão de rede
+network_client = NetworkManagementClient(credential, subscription_id)
 
-      - name: Monitor and Restart AnyDesk if Needed
-        run: |
-          # Monitora a conexão do AnyDesk e reinicia se necessário
-          while ($true) {
-            $process = Get-Process -Name "AnyDesk" -ErrorAction SilentlyContinue
-            if (-not $process) {
-              Write-Host "AnyDesk não está rodando, reiniciando..."
-              cmd /c start.bat
-            }
-            Start-Sleep -Seconds 300  # Verifica a cada 5 minutos
-          }
+# Cliente de gestão de computação
+compute_client = ComputeManagementClient(credential, subscription_id)
 
-      - name: Time Counter (Long Running Task)
-        run: |
-          # Configura para manter a máquina em execução
-          Start-Sleep -Seconds 604800  # 7 dias de execução contínua
+# Configuração da máquina virtual
+vm_parameters = {
+    'location': location,
+    'hardware_profile': HardwareProfile(vm_size='Standard_DS1_v2'),
+    'os_profile': OsProfile(
+        computer_name=vm_name,
+        admin_username=admin_username,
+        admin_password=admin_password
+    ),
+    'storage_profile': StorageProfile(
+        image_reference={
+            'publisher': 'Canonical',
+            'offer': 'UbuntuServer',
+            'sku': '18.04-LTS',
+            'version': 'latest'
+        },
+        'os_disk': {
+            'name': f'{vm_name}-osdisk',
+            'caching': CachingTypes.READ_WRITE,
+            'create_option': DiskCreateOption.FROM_IMAGE,
+            'disk_size_gb': 30
+        }
+    ),
+    'network_profile': NetworkProfile(
+        network_interfaces=[NetworkInterfaceReference(
+            id=network_interface_id,
+            primary=True
+        )]
+    )
+}
 
-      - name: Clean Up Temporary Files
-        if: success()  # Executa esta etapa apenas se todas as etapas anteriores forem bem-sucedidas
-        run: |
-          # Remove arquivos temporários ou logs gerados
-          Remove-Item Downloads.bat -Force
-          Write-Host "Limpeza completa."
+# Criação da máquina virtual
+async_vm_creation = compute_client.virtual_machines.begin_create_or_update(
+    resource_group_name,
+    vm_name,
+    vm_parameters
+)
+vm_result = async_vm_creation.result()
+
+print(f"Máquina virtual {vm_name} criada com sucesso!")
+
+# Comandos para configurar o acesso RDP
+commands = 
