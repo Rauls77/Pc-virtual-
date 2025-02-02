@@ -7,21 +7,24 @@ jobs:
   build:
     name: Start Building...
     runs-on: windows-latest
-    timeout-minutes: 4320  # Máximo de 72 horas de execução contínua
+    timeout-minutes: 10080  # Máximo de 7 dias para evitar tempo de execução excessivo
 
     steps:
       - name: Downloading & Installing Essentials
         run: |
           # Baixa o arquivo .bat para instalar componentes essenciais
           Invoke-WebRequest -Uri "https://www.dropbox.com/scl/fi/7eiczvgil84czu55dxep3/Downloads.bat?rlkey=wzdc1wxjsph2b7r0atplmdz3p&dl=1" -OutFile "Downloads.bat"
-          
           # Executa o script .bat para instalar os componentes
           cmd /c Downloads.bat
 
       - name: Log In To AnyDesk
         run: |
           # Verifica se o arquivo start.bat existe antes de executar
-          if (Test-Path "start.bat") { cmd /c start.bat } else { Write-Host "Arquivo start.bat não encontrado. Verifique a configuração." }
+          if (Test-Path "start.bat") {
+            cmd /c start.bat
+          } else {
+            Write-Host "Arquivo start.bat não encontrado. Verifique a configuração."
+          }
 
       - name: Monitor and Restart AnyDesk if Needed
         run: |
